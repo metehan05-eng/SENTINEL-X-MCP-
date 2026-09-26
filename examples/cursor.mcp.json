@@ -1,0 +1,36 @@
+{
+  "$comment": [
+    "Portable SENTINEL-X entry for Cursor. Copy this into ~/.cursor/mcp.json",
+    "on any machine. It records the command by NAME, not by path, so it does",
+    "not care where the repository is checked out or which account runs it.",
+    "",
+    "Setup on each machine:",
+    "  1. go build -o sentinel-x .",
+    "  2. sudo install -m 0755 sentinel-x /usr/local/bin/sentinel-x",
+    "     (any directory on PATH works; /usr/local/bin needs no PATH change)",
+    "  3. Restart Cursor.",
+    "",
+    "SENTINELX_SCOPE_TARGETS is deliberately absent. With no scope the server",
+    "will still answer, but every result is stamped with a scope notice saying",
+    "it ran unrestricted. Pin it instead, listing only assets you are",
+    "authorised to assess:",
+    "",
+    "  \"env\": { \"SENTINELX_SCOPE_TARGETS\": \"example.com,10.0.0.0/24\" }",
+    "",
+    "A hostname entry does NOT cover its subdomains; add \"*.example.com\".",
+    "Private addresses are refused unless you also set:",
+    "  \"SENTINELX_ALLOW_PRIVATE_NETWORKS\": \"true\"",
+    "",
+    "The installer can write this for you, with the scope filled in:",
+    "  ./sentinel-x install --client cursor --portable \\",
+    "      --env SENTINELX_SCOPE_TARGETS=example.com"
+  ],
+  "mcpServers": {
+    "sentinel-x": {
+      "command": "sentinel-x",
+      "env": {
+        "SENTINELX_SCOPE_TARGETS": "example.com,203.0.113.0/24"
+      }
+    }
+  }
+}

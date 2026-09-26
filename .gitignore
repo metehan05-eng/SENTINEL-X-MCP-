@@ -1,0 +1,12 @@
+# Build artefacts
+/sentinel-x
+/sentinel-x-*
+*.exe
+*.test
+*.out
+
+# Scan output — never commit scan results, they contain target details
+*.xml
+nmap-report.*
+gnmap-report.*
+*.nmap
