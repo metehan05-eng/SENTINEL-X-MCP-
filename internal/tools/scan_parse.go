@@ -717,7 +717,12 @@ func reviewTLS(r TLSAuditResult) []Finding {
 	return dedupeFindings(out)
 }
 
-func reviewHTTP(r HTTPResult) []Finding {
+// reviewHTTP takes a pointer because it also fills r.Missing and r.Present as a
+// side effect. It used to take a value, which silently discarded those two
+// slices: the findings were still built correctly, so the bug only showed up as
+// a permanently null missing_security_headers field, and a null there reads as
+// "nothing is missing" rather than "this was never computed".
+func reviewHTTP(r *HTTPResult) []Finding {
 	var out []Finding
 	required := map[string]string{
 		"strict-transport-security": "hsts",

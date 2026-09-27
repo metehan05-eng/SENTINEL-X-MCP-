@@ -196,7 +196,7 @@ func toolOrder() []string {
 		"sentinelx_reverse_lookup",
 		"sentinelx_port_scan",
 		"sentinelx_tls_audit",
-		"sentinelx_http_headers",
+		"sentinelx_http_headers", "sentinelx_http_probe",
 		"sentinelx_version_risk",
 		"sentinelx_cve_lookup",
 		"sentinelx_cve_search",

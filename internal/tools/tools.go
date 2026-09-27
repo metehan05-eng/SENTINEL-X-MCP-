@@ -115,6 +115,30 @@ func (s safeURL) host() string {
 	return s.u.Host
 }
 
+// scheme reports the URL's scheme, defaulting to https for a bare host.
+func (s safeURL) scheme() string {
+	if s.u == nil || s.u.Scheme == "" {
+		return "https"
+	}
+	return strings.ToLower(s.u.Scheme)
+}
+
+// resolve follows a Location header value, which may be absolute or relative.
+// A malformed header is returned as an error rather than guessed at.
+func (s safeURL) resolve(location string) (string, error) {
+	if s.u == nil {
+		return "", fmt.Errorf("no base URL")
+	}
+	ref, err := url.Parse(strings.TrimSpace(location))
+	if err != nil {
+		return "", err
+	}
+	resolved := s.u.ResolveReference(ref)
+	resolved.User = nil
+	resolved.Fragment = ""
+	return resolved.String(), nil
+}
+
 // sanitiseURL removes any embedded credentials before the URL reaches argv, so
 // they are not exposed in the process table.
 func sanitiseURL(s safeURL) string {

@@ -28,6 +28,7 @@ func Scanner(d Deps) []Tool {
 		portScanTool(d),
 		tlsAuditTool(d),
 		httpHeadersTool(d),
+		httpProbeTool(d),
 	}
 }
 
@@ -515,7 +516,7 @@ func httpHeadersTool(d Deps) Tool {
 		} else {
 			data.BodyExcerpt = ""
 		}
-		data.Findings = reviewHTTP(data)
+		data.Findings = reviewHTTP(&data)
 		return ok(d, toolName, data.URL, start, res, data)
 	}
 	return Tool{Tool: t, Handler: h}
