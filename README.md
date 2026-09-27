@@ -3,7 +3,7 @@
 **Security Analysis & Vulnerability Management MCP Server**
 
 SENTINEL-X is a read-only security analysis server for the Model Context Protocol. It gives an
-LLM client (Claude Desktop, Cursor, OpenCode, …) twenty-two tools for asset discovery, service
+LLM client (Claude Desktop, Cursor, OpenCode, …) twenty-five tools for asset discovery, service
 fingerprinting, vulnerability correlation, supply-chain review, DNS and platform posture, and
 local configuration auditing — over stdio transport, in Go, with no shell anywhere in the data
 path.
@@ -59,7 +59,7 @@ invocations, and deliberately hostile calls that must be refused:
 ```bash
 go build -o sentinel-x .
 
-SENTINELX_BIN=./sentinel-x go run -tags smoke ./cmd/smoke        # 22 tools, refusals
+SENTINELX_BIN=./sentinel-x go run -tags smoke ./cmd/smoke        # 25 tools, refusals
 SENTINELX_BIN=./sentinel-x go run -tags smoke ./cmd/install_smoke # install → start, per client
 go run -tags smoke ./cmd/offline_smoke                            # proves OFFLINE blocks egress
 ```

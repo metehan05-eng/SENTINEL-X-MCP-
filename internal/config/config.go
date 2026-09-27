@@ -183,6 +183,12 @@ func defaultConfig() *Config {
 				"python", "python3", "perl", "ruby", "php", "nc", "ncat", "netcat",
 				"msfconsole", "msfvenom", "meterpreter", "searchsploit",
 				"hydra", "sqlmap", "nikto", "gobuster", "ffuf", "wfuzz",
+				// nuclei can be told to run RCE and fuzzing templates, and it
+				// phones home for templates on first run. Unlike searchsploit
+				// it is NOT re-enabled below: an operator has to allow it by
+				// name, because "the scan tool is installed" is not consent to
+				// have it send exploit traffic to a target.
+				"nuclei",
 				"curl", // overridden below: re-added only if explicitly allowed
 			},
 			MaxOutputBytes:       2 << 20, // 2 MiB
@@ -279,6 +285,31 @@ func defaultConfig() *Config {
 			`(?i)^--url$`,
 			`(?i)^--trace\b`,
 			`(?i)^--libcurl\s+\S`,
+		},
+		"nuclei": {
+			// Nothing may be written to disk: a read-only server has no
+			// business producing report files or a template database.
+			`(?i)^(-|--)(o|output|output-file|me|markdown-export|sr|silent-report)\b`,
+			// Template and signature updates download and unpack archives.
+			// That is a network fetch plus a filesystem write triggered
+			// implicitly, which is exactly the kind of side effect this server
+			// does not take on.
+			`(?i)^(-|--)(update|update-templates|ut|update-check|install)\b`,
+			// interactsh exfiltrates findings to a third-party collaborator
+			// server. That sends data about the target somewhere the operator
+			// did not name, so it is refused outright.
+			`(?i)^(-|--)(interactsh-url|interactsh-server|i-u|i-us|i-url)\b`,
+			`(?i)^(-|--)(fuzz|fz)\b`,
+			`(?i)^(-|--)(payloads|p)\b`,
+			// Routing traffic through a proxy hides the real source and can
+			// defeat the scope decision already made upstream.
+			`(?i)^(-|--)(proxy|proxy-url|proxy-auth|proxies|replay-proxy)\b`,
+			// Browser-driven and code-executing templates run arbitrary
+			// attacker-chosen logic rather than fixed checks.
+			`(?i)^(-|--)(headless|enable-code-templates|code|dast|dsl|evaluate-code)\b`,
+			// Loading a target list from disk would bypass the per-target
+			// scope check performed here.
+			`(?i)^(-|--)(l|list|input-file)\b`,
 		},
 		"sshd": {
 			// Only the effective-config dump is permitted; anything that can
@@ -381,6 +412,12 @@ func applyEnv(c *Config) error {
 	listv("AUDIT_ROOTS", &c.AuditRoots)
 	listv("SCOPE_TARGETS", &c.Policy.ScopeTargets)
 	listv("NMAP_SCRIPTS", &c.NmapAllowedScripts)
+	// Appended rather than assigned: adding one binary must never be able to
+	// silently drop the ones already permitted, and a typo here should widen
+	// nothing rather than narrow the toolset to nothing.
+	if raw, ok := os.LookupEnv(envPrefix + "ALLOWED_BINARIES"); ok && raw != "" {
+		c.Policy.AllowedBinaries = append(c.Policy.AllowedBinaries, splitList(raw)...)
+	}
 
 	if c.Policy.ScopeTargets == nil {
 		c.Policy.ScopeTargets = []string{}

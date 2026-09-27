@@ -18,7 +18,7 @@ import (
 // because they used to carry the same list separately and drifted: a tool added
 // to one but not the other was registered but invisible, or visible and broken.
 func toolSets(d Deps) [][]Tool {
-	return [][]Tool{Recon(d), Scanner(d), Vulnerability(d), SupplyChain(d), Platform(d), Audit(d), []Tool{UrlArchive(d)}}
+	return [][]Tool{Recon(d), Scanner(d), Vulnerability(d), SupplyChain(d), Platform(d), Audit(d), Active(d), []Tool{UrlArchive(d), xssProbeTool(d)}}
 }
 
 func Definition(name string, d Deps) (mcp.Tool, error) {

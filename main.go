@@ -208,6 +208,7 @@ func toolOrder() []string {
 		"sentinelx_log_threat_analysis",
 		"sentinelx_host_posture_audit",
 		"sentinelx_config_audit",
+		"sentinelx_nuclei_scan", "sentinelx_xss_probe",
 		"sentinelx_secret_scan",
 		"sentinelx_permission_audit",
 	}
