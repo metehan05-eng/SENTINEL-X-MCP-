@@ -5,6 +5,11 @@
 *.test
 *.out
 
+# npm wrapper state (no dependencies are installed; this is only here so an
+# accidental `npm install` does not create a lockfile and node_modules)
+/node_modules
+/package-lock.json
+
 # Scan output — never commit scan results, they contain target details
 *.xml
 nmap-report.*

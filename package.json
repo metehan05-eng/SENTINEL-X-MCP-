@@ -1,0 +1,18 @@
+{
+  "name": "sentinel-x-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Read-only security analysis MCP server (Go). npm is only a convenience wrapper so `npm run dev` can build and start it.",
+  "scripts": {
+    "build": "go build -o sentinel-x .",
+    "dev": "npm run build && ./sentinel-x serve --http",
+    "serve:stdio": "npm run build && ./sentinel-x serve",
+    "start": "npm run dev",
+    "test": "go test ./...",
+    "lint": "gofmt -l . && go vet ./...",
+    "install:portable": "./sentinel-x install --client cursor --portable"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

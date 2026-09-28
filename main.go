@@ -73,6 +73,10 @@ func usage(w io.Writer) {
 
 Usage:
   sentinel-x [serve]         run the MCP server on stdio (used by MCP clients)
+  sentinel-x serve --http     run it on http://127.0.0.1:7331/mcp instead, so a
+                              client can connect to an already-running server
+  sentinel-x serve --http --addr 127.0.0.1:9000
+  sentinel-x serve --http --allow-remote-bind    (refused by default; see --help)
   sentinel-x install         add this server to an MCP client, or write a config
   sentinel-x uninstall       remove it again
   sentinel-x list            show which clients are configured
@@ -97,7 +101,15 @@ test. Running it against third-party infrastructure is not.
 `, config.ServerName, config.ServerVersion)
 }
 
+// serveArgs holds the flags that follow "serve". They are parsed inside run()
+// rather than in main() so an unknown flag is reported the same way as any
+// other runtime error.
+var serveArgs []string
+
 func run() error {
+	if len(os.Args) > 2 && os.Args[1] == "serve" {
+		serveArgs = os.Args[2:]
+	}
 	cfg, err := config.Get()
 	if err != nil {
 		return err
@@ -169,6 +181,15 @@ func run() error {
 	// is what verbose is for.
 	if cfg.Verbose {
 		logger.Printf("%s %s ready: %d tools registered", config.ServerTitle, config.ServerVersion, len(registry))
+	}
+	// The transport is chosen after the tools are registered, so a flag typo
+	// is reported before any of that work happens.
+	httpFlags, herr := parseHTTPFlags(serveArgs)
+	if herr != nil {
+		return herr
+	}
+	if httpFlags.enabled {
+		return serveHTTP(s, httpFlags, logger)
 	}
 	if err := server.ServeStdio(s); err != nil {
 		return fmt.Errorf("stdio transport failed: %w", err)
