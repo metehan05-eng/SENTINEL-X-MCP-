@@ -3,7 +3,7 @@
 **Security Analysis & Vulnerability Management MCP Server**
 
 SENTINEL-X is a read-only security analysis server for the Model Context Protocol. It gives an
-LLM client (Claude Desktop, Cursor, OpenCode, …) twenty-six tools for asset discovery, service
+LLM client (Claude Desktop, Cursor, OpenCode, …) twenty-seven tools for asset discovery, service
 fingerprinting, vulnerability correlation, supply-chain review, DNS and platform posture, and
 local configuration auditing — over stdio transport, in Go, with no shell anywhere in the data
 path.
@@ -59,7 +59,7 @@ invocations, and deliberately hostile calls that must be refused:
 ```bash
 go build -o sentinel-x .
 
-SENTINELX_BIN=./sentinel-x go run -tags smoke ./cmd/smoke        # 26 tools, refusals
+SENTINELX_BIN=./sentinel-x go run -tags smoke ./cmd/smoke        # 27 tools, refusals
 SENTINELX_BIN=./sentinel-x go run -tags smoke ./cmd/install_smoke # install → start, per client
 go run -tags smoke ./cmd/offline_smoke                            # proves OFFLINE blocks egress
 ```
@@ -364,6 +364,11 @@ These are real, and the server says so in its output rather than hiding them:
   public exploit module exists for a CVE says a known attack path is published; it says nothing
   about whether any given target is affected. The tool states this in every response, and a
   missing module tree is reported as unavailable rather than as "no coverage".
+- **SARIF counts findings, it does not score risk.** `sentinelx_sarif_report` maps each finding's
+  reported severity onto a SARIF level and says so; it does not compute a risk score, and every result
+  carries its own evidence and confidence so a consumer can tell a confirmed finding from a fingerprint
+  hypothesis. Unknown severity becomes `note`, never `error`. An empty `results` array means no findings
+  were supplied, which is not a statement that the target is clean.
 - **Module coverage ages.** The index is whatever `metasploit-framework` ships on this machine at
   the moment it is read. It is not refreshed, and a CVE absent from a stale tree may still have
   a public exploit.
@@ -399,6 +404,7 @@ sentinel-x/
         ├── scan_parse.go         # nmap/TLS/HTTP parsers + triage rules
         ├── vulnerability.go      # NVD API, version correlation, advisory index
 ├── metasploit.go         # offline Metasploit module coverage lookup
+├── sarif.go              # SARIF 2.1.0 output for CI
         ├── supplychain.go        # Manifest discovery/parsing, SBOM, dependency audit
         ├── platform.go           # ELF/PE/Mach-O hardening, kubeconfig, log threats
         ├── stat_unix.go          # UID/GID helpers (!windows)
