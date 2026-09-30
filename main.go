@@ -234,6 +234,7 @@ func toolOrder() []string {
 		"sentinelx_advisory_index",
 		"sentinelx_metasploit_reference",
 		"sentinelx_sarif_report",
+		"sentinelx_baseline",
 		"sentinelx_sbom_inventory",
 		"sentinelx_dependency_audit",
 		"sentinelx_binary_hardening",

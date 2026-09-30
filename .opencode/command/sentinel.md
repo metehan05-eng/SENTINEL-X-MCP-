@@ -39,6 +39,17 @@ Hedef bir alan adıysa bu sırayı izle. Bir IP adresiyse 1. adımda dur ve 2'de
 6. **Yerel yapılandırma** (yalnız bu makinenin kendi diski isteniyorsa) —
    `sentinelx_secret_scan`, `sentinelx_config_audit`, `sentinelx_host_posture_audit`.
 
+## Bulguları raporla
+
+7. **CVE kapsamı** — her bulgu için `sentinelx_metasploit_reference`. Bir açık için exploit modülü
+   varsa bulgunun anlamı değişir; yalnızca scanner modülü varsa güvenli doğrulama yolu vardır.
+   Bu araç yalnızca indeks bilgisi verir, hedefe hiç istek atmaz.
+
+8. **SARIF ve baseline** — `sentinelx_sarif_report` ile bulguları SARIF 2.1.0'a çevir (CI'a girmek
+   için gereken budur). `sentinelx_baseline` ile kaydet; sonraki taramada `action: "diff"` ile
+   neyin yeni, neyin kapandı, neyin hâlâ açık olduğunu raporla. Daha önce kaydedilmiş bir baseline
+   varsa önce ona karşı fark al — tek seferlik bir liste, sürekli değerlendirmenin işi değildir.
+
 ## Raporlarken
 
 - **Gördüğün ile çıkardığını ayır.** Bir sürüm parmak izini *hipotezdir*, kanıt değil.
