@@ -37,18 +37,32 @@ type Registry map[string]Handler
 // All builds the complete tool registry for the server.
 func All(d Deps) Registry {
 	r := Registry{}
-	for _, set := range toolSets(d) {
-		for _, t := range set {
-			r[t.Tool.Name] = t.Handler
-		}
+	for _, t := range AllTools(d) {
+		r[t.Tool.Name] = t.Handler
 	}
 	return r
+}
+
+// AllTools returns every tool with its full descriptor. All collapses this to
+// name/handler pairs, but `sentinel-x doctor` needs the metadata too: a tool it
+// cannot report as unusable is exactly the failure it exists to prevent.
+func AllTools(d Deps) []Tool {
+	out := []Tool{}
+	for _, set := range toolSets(d) {
+		out = append(out, set...)
+	}
+	return out
 }
 
 // Tool pairs a schema with its handler.
 type Tool struct {
 	Tool    mcp.Tool
 	Handler Handler
+
+	// Requires lists the external binaries a tool needs. These are candidates,
+	// not hard requirements: a tool passes several to requireBinary and runs on
+	// whichever resolves first, so a tool is usable when any one is present.
+	Requires []string
 }
 
 // ---------------------------------------------------------------------------

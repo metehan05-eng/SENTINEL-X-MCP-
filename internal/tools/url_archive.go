@@ -391,7 +391,8 @@ func UrlArchive(d Deps) Tool {
 		return ok(d, toolName, domain, start, nil, res, append(warns, caveat)...)
 	}
 
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"curl"}}
 }
 
 // sortedKeys returns up to max keys, sorted, so the output is deterministic.

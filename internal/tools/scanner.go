@@ -221,7 +221,8 @@ func portScanTool(d Deps) Tool {
 		}
 		return ok(d, toolName, target, start, res, data)
 	}
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"nmap"}}
 }
 
 // TLSAuditResult reports transport-layer security posture.
@@ -374,7 +375,8 @@ func tlsAuditTool(d Deps) Tool {
 		data.RawExcerpt = utils.Truncate(out, 6000)
 		return ok(d, toolName, target, start, res, data)
 	}
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"nmap"}}
 }
 
 // describeUnparsedScan explains why a scan produced nothing, using the parts of
@@ -519,7 +521,8 @@ func httpHeadersTool(d Deps) Tool {
 		data.Findings = reviewHTTP(&data)
 		return ok(d, toolName, data.URL, start, res, data)
 	}
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"curl"}}
 }
 
 // ---------------------------------------------------------------------------

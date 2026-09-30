@@ -323,7 +323,8 @@ func dnsSecurityAuditTool(d Deps) Tool {
 			"DKIM detection probes a fixed selector list; a key under an unlisted selector will not be found")
 	}
 
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"dig"}}
 }
 
 var commonSubdomains = []string{"www", "dev", "staging", "test", "admin", "api", "vpn", "git", "jenkins", "jira", "mail"}
@@ -788,7 +789,8 @@ func subdomainDiscoveryTool(d Deps) Tool {
 		return ok(d, toolName, domain, start, nil, res, append(warns, caveat)...)
 	}
 
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"curl"}}
 }
 
 // SubdomainEntry is one discovered name.

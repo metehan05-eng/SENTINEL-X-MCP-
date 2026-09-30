@@ -207,7 +207,8 @@ func dnsLookupTool(d Deps) Tool {
 		}
 		return ok(d, toolName, host, start, res, data)
 	}
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"dig", "nslookup", "host"}}
 }
 
 func whoisTool(d Deps) Tool {
@@ -282,7 +283,8 @@ func whoisTool(d Deps) Tool {
 		}
 		return ok(d, toolName, target, start, res, data)
 	}
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"whois"}}
 }
 
 // ReverseResult is the output of a PTR / ownership check.
@@ -416,7 +418,8 @@ func reverseLookupTool(d Deps) Tool {
 		data.RDNS = data.PTR
 		return ok(d, toolName, ip, start, res, data)
 	}
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"dig", "nslookup", "host"}}
 }
 
 // ---------------------------------------------------------------------------

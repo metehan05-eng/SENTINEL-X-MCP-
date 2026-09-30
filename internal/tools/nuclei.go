@@ -310,7 +310,8 @@ func nucleiScanTool(d Deps) Tool {
 		return ok(d, toolName, strings.Join(inScope, ", "), start, nil, res)
 	}
 
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"nuclei"}}
 }
 
 func severityRank(s string) int {

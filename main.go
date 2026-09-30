@@ -51,6 +51,14 @@ func main() {
 		case "version", "--version", "-v":
 			fmt.Printf("%s %s\n", config.ServerName, config.ServerVersion)
 			return
+		case "doctor":
+			// Exits non-zero when a tool cannot run, so this is usable as a
+			// preflight check in a script rather than only something to read.
+			if err := runDoctor(os.Args[2:]); err != nil {
+				fmt.Fprintf(os.Stderr, "sentinel-x: %v\n", err)
+				os.Exit(1)
+			}
+			return
 		case "serve":
 			// Explicit and equivalent to no argument. Named here so a typo is
 			// reported instead of silently starting a server that blocks.
@@ -80,6 +88,8 @@ Usage:
   sentinel-x install         add this server to an MCP client, or write a config
   sentinel-x uninstall       remove it again
   sentinel-x list            show which clients are configured
+  sentinel-x doctor          report which tools can run here (binaries, scope, keys)
+  sentinel-x doctor --json   the same report, machine-readable
   sentinel-x help            this message
   sentinel-x version         print the version
 

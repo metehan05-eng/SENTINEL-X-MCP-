@@ -228,7 +228,8 @@ func xssProbeTool(d Deps) Tool {
 		return ok(d, toolName, res.URL, start, nil, res)
 	}
 
-	return Tool{Tool: t, Handler: handler}
+	return Tool{Tool: t, Handler: handler,
+		Requires: []string{"curl"}}
 }
 
 // xssFetch requests the URL with one parameter set to value, and returns the

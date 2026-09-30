@@ -456,7 +456,8 @@ func httpProbeTool(d Deps) Tool {
 		return ok(d, toolName, res.Domain, start, nil, res)
 	}
 
-	return Tool{Tool: t, Handler: h}
+	return Tool{Tool: t, Handler: h,
+		Requires: []string{"curl"}}
 }
 
 func clampInt(v, lo, hi, def int) int {
