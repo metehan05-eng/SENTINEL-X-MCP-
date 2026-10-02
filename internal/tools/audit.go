@@ -37,6 +37,7 @@ func Audit(d Deps) []Tool {
 		configLintTool(d),
 		secretScanTool(d),
 		permissionTool(d),
+		trafficAuditTool(d),
 	}
 }
 

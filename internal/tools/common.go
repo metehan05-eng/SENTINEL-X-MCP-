@@ -8,8 +8,11 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
+
 	"errors"
 	"fmt"
+	"github.com/sentinel-x/sentinel-x/internal/cache"
 	"strings"
 	"time"
 
@@ -29,18 +32,97 @@ type Handler = server.ToolHandlerFunc
 type Deps struct {
 	Cfg    *config.Config
 	Runner *utils.Runner
+
+	// Cache is passed here rather than hung off Config because Config is a
+	// memoised singleton: a runtime field on it is shared mutable state that
+	// any holder can rewrite.
+	Cache *cache.Cache
 }
 
 // Registry maps tool names to their handler.
 type Registry map[string]Handler
 
 // All builds the complete tool registry for the server.
+//
+// Handlers are wrapped in the result cache here rather than inside each tool,
+// so a tool added later is cached without anyone remembering. Tools that send
+// non-idempotent traffic are excluded: serving a cached "active scan" reads as
+// a fresh result, and an active result is the one thing in this server a
+// reader must be able to trust is current.
 func All(d Deps) Registry {
 	r := Registry{}
 	for _, t := range AllTools(d) {
-		r[t.Tool.Name] = t.Handler
+		if uncacheable[t.Tool.Name] {
+			r[t.Tool.Name] = t.Handler
+			continue
+		}
+		r[t.Tool.Name] = cachedHandler(d, t)
 	}
 	return r
+}
+
+// uncacheable lists tools whose results must never be served from cache.
+//
+// Three of these are not about staleness at all but about having side effects,
+// which a cache cannot reproduce: setup installs packages, baseline writes a
+// file, and sarif_report may write one. Replaying "wrote /tmp/report.sarif"
+// without touching the disk hands back a success for an action that did not
+// happen, which is worse than a slow call.
+var uncacheable = map[string]bool{
+	"sentinelx_nuclei_scan": true,
+	"sentinelx_xss_probe":   true,
+	"sentinelx_setup":       true,
+	// A live view of the machine's sockets goes stale within seconds, so a
+	// memoised copy would be wrong by the time anyone read it.
+	"sentinelx_traffic_audit": true,
+	"sentinelx_baseline":      true,
+	"sentinelx_sarif_report":  true,
+}
+
+// cachedHandler memoises a tool's successful response.
+func cachedHandler(d Deps, t Tool) Handler {
+	inner := t.Handler
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		store := d.Cache
+		if store == nil {
+			return inner(ctx, req)
+		}
+		args := req.GetArguments()
+		if e, hit, age := store.Get(t.Tool.Name, args); hit {
+			// The cached envelope is replayed with the age spliced in, so the
+			// disclosure sits at the top level where a model will read it
+			// rather than buried in the data.
+			var env map[string]any
+			if json.Unmarshal(e.Result, &env) == nil {
+				n := cache.NewNotice(true, age)
+				env["cache_hit"] = n.CacheHit
+				env["cache_age_ms"] = n.CacheAgeMS
+				env["cache_note"] = n.Note
+				// The observation time is left alone. Rewriting it to now()
+				// would make a ten-minute-old scan look like it just ran, and
+				// the age above it is easy for a model to drop from its
+				// summary.
+				env["duration_ms"] = 0
+				merged, err := mcp.NewToolResultJSON(env)
+				if err == nil {
+					return merged, nil
+				}
+			}
+		}
+		res, err := inner(ctx, req)
+		if err != nil || res == nil || res.IsError {
+			return res, err
+		}
+		if len(res.Content) == 0 {
+			return res, nil
+		}
+		if txt, isTxt := res.Content[0].(mcp.TextContent); isTxt {
+			if json.Valid([]byte(txt.Text)) {
+				store.Put(t.Tool.Name, args, json.RawMessage(txt.Text))
+			}
+		}
+		return res, nil
+	}
 }
 
 // AllTools returns every tool with its full descriptor. All collapses this to

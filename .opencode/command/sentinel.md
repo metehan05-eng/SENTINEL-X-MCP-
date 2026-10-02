@@ -7,6 +7,9 @@ SENTINEL-X ile `$ARGUMENTS` hedefini değerlendir. Hedef IP adresi ya da alan ad
 
 Hedef: **$ARGUMENTS**
 
+> Bu komut isteğe bağlıdır. Aynı değerlendirmeyi `/sentinel` yazmadan da, doğrudan
+> hedefi söyleyerek başlatabilirsin; sunucu modele talimatı kendisi verir.
+
 ## Kapsam
 
 Sunucu yalnızca `SENTINELX_SCOPE_TARGETS` içindeki hedefleri kabul eder. İlk iş olarak
@@ -16,6 +19,23 @@ Sunucu yalnızca `SENTINELX_SCOPE_TARGETS` içindeki hedefleri kabul eder. İlk 
   listeye eklemesini iste. Kapsam dışı bir hedefe istek göndererek engeli aşmak, aracın
   var olma sebebini ortadan kaldırır.
 - Kapsam içindeyse devam et.
+
+**Kapsam hiç ayarlanmamışsa** `SENTINELX_SCOPE_TARGETS` boştur ve bu durumda sunucu her
+hedefi kabul eder; araçların `scope_notice` alanı bunu her cevapta hatırlatır. Yine de
+değerlendirmeye başlamadan önce bunu kullanıcıya söyle ve `SENTINELX_SCOPE_TARGETS`
+ayarlanana kadar hedeflerin kendi altyapısı dışına bakma.
+
+## Eksik araçlar
+
+Bir araç eksik binary bildirirse **durma, kullanıcıya sorma**. `sentinelx_setup` çağır:
+
+```
+sentinelx_setup {"action":"install","requirements":["whois"]}
+```
+
+Kurulum sabit bir paket tablosundan yapılır, `nuclei` ve Metasploit indirilmez. Kurulum
+başarısız olursa neyin eksik olduğunu ve değerlendirmenin bundan nasıl etkilendiğini
+söyle, kalan adımlara devam et.
 
 ## Değerlendirme sırası
 

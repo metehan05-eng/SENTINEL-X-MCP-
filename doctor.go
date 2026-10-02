@@ -121,15 +121,15 @@ func buildDoctorReport(cfg *config.Config, runner *utils.Runner, all []tools.Too
 	for _, t := range all {
 		st := toolStatus{Tool: t.Tool.Name, Usable: true, Needs: t.Requires}
 		if len(t.Requires) > 0 {
-			// requireBinary takes whichever candidate resolves first, so any
-			// one of them is enough.
+			has := false
 			for _, b := range t.Requires {
 				if installed[b] {
-					st.Usable = true
+					has = true
 					break
 				}
 				st.Missing = append(st.Missing, b)
 			}
+			st.Usable = has
 		}
 		if dg, ok := degradedTools[t.Tool.Name]; ok && !installed[dg.bin] {
 			st.Degraded = dg.note

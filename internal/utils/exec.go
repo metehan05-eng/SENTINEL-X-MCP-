@@ -18,8 +18,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/sentinel-x/sentinel-x/internal/budget"
+	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +88,75 @@ type Runner struct {
 	// resolved caches PATH lookups so repeated tool calls stay cheap.
 	mu       sync.RWMutex
 	resolved map[string]string
+
+	// budget bounds how much this process can send. It is checked here, at the
+	// one place every external request passes through, so a tool added later
+	// is bounded without anyone remembering to add a check.
+	budget *budget.State
+}
+
+// BudgetExhaustedError reports a refusal by the request budget. It is
+// distinguishable so a caller can tell "you asked for too much" from
+// "the scan could not run".
+type BudgetExhaustedError struct {
+	Reason string
+	Limit  string
+}
+
+func (e *BudgetExhaustedError) Error() string { return e.Reason }
+
+// budgetLimitsFrom reads the budget caps from config, falling back to defaults
+// for anything unset.
+func budgetLimitsFrom(cfg *config.Config) budget.Limits {
+	l := budget.DefaultLimits()
+	if v := envInt("SENTINELX_BUDGET_PER_TARGET", 0); v > 0 {
+		l.MaxPerTarget = v
+	}
+	if v := envInt("SENTINELX_BUDGET_TOTAL", 0); v > 0 {
+		l.MaxTotal = v
+	}
+	if v := envInt("SENTINELX_BUDGET_PER_TOOL", 0); v > 0 {
+		l.MaxPerTool = v
+	}
+	return l
+}
+
+func envInt(name string, def int) int {
+	v := os.Getenv(name)
+	if v == "" {
+		return def
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 {
+		return def
+	}
+	return n
+}
+
+// Forget drops a cached PATH lookup so the next call re-resolves it.
+//
+// Negative results are cached too, which is correct for the common case and
+// wrong immediately after a dependency is installed: without this, a tool
+// would report the binary missing for the rest of the process even though the
+// package manager just put it on disk.
+func (r *Runner) Forget(binary string) {
+	r.mu.Lock()
+	delete(r.resolved, binary)
+	r.mu.Unlock()
+}
+
+// Budget returns the attached budget, or nil.
+func (r *Runner) Budget() *budget.State { return r.budget }
+
+// spend consults the budget before an external process is started.
+func (r *Runner) spend(args []string, tool string) error {
+	if r.budget == nil {
+		return nil
+	}
+	if d := r.budget.Check(budget.HostOf(args), tool); !d.Allowed {
+		return &BudgetExhaustedError{Reason: d.Reason, Limit: d.Limit}
+	}
+	return nil
 }
 
 // NewRunner compiles the policy regexes once. A malformed regex in the policy
@@ -120,6 +192,7 @@ func NewRunner(cfg *config.Config) (*Runner, error) {
 		denied:    denied,
 		perBinary: perBinary,
 		sem:       make(chan struct{}, cfg.Policy.MaxConcurrency),
+		budget:    budget.New(budgetLimitsFrom(cfg)),
 		redactor:  NewRedactor(cfg.Policy.RedactPatterns),
 		resolved:  make(map[string]string),
 	}, nil
@@ -155,6 +228,9 @@ func (r *Runner) HasBinary(candidates ...string) string {
 // A non-zero exit status is reported in the result rather than as an error;
 // only policy violations and spawn failures produce an error.
 func (r *Runner) Run(ctx context.Context, spec Spec) (*Result, error) {
+	if err := r.spend(spec.Args, spec.Binary); err != nil {
+		return nil, err
+	}
 	if err := r.checkBinary(spec.Binary); err != nil {
 		return nil, err
 	}
@@ -240,6 +316,9 @@ func (r *Runner) Run(ctx context.Context, spec Spec) (*Result, error) {
 // wrote something useful there, otherwise stderr. nmap in particular reports
 // most of its findings on stderr.
 func (r *Runner) RunCombined(ctx context.Context, spec Spec) (string, *Result, error) {
+	if err := r.spend(spec.Args, spec.Binary); err != nil {
+		return "", nil, err
+	}
 	res, err := r.Run(ctx, spec)
 	if err != nil {
 		return "", nil, err

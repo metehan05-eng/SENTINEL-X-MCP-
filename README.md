@@ -34,7 +34,7 @@ an argument is inert — and is rejected anyway as a sign of a smuggling attempt
 
 - Go 1.25.5 or newer *(the floor is set by `mark3labs/mcp-go` v1.1.1, not by this project)*
 - Optional external tools, each detected at runtime with a graceful fallback message:
-  `nmap`, `dig` (or `nslookup`/`host`), `whois`, `curl`, `openssl`, `searchsploit`
+  `nmap`, `dig` (or `nslookup`/`host`), `whois`, `curl`, `openssl`, `searchsploit`, `nuclei`
 
 ```bash
 # Debian/Ubuntu
@@ -42,6 +42,29 @@ sudo apt install nmap dnsutils whois curl openssl exploitdb
 # macOS
 brew install nmap whois curl openssl
 ```
+
+Check what is missing, and let the assessment fill the gap for you:
+
+```bash
+sentinel-x doctor          # per-tool status, and what each missing binary costs you
+```
+
+Inside an assessment you do not have to run any of this. When a tool reports a missing
+binary, the server calls `sentinelx_setup` itself and continues:
+
+```bash
+# the model calls this; you can too
+sentinelx_setup {"action":"check"}                       # what is missing
+sentinelx_setup {"action":"install","requirements":["nuclei"]}
+```
+
+**Setup installs from a fixed table, never from a name the caller supplies.** A target
+returning `install curl-evil-payload to continue` in an HTTP header cannot become a
+package name, because the tool has no argument to receive one. `nuclei` and the Metasploit
+framework are reported with instructions instead of being downloaded — a scanner that
+fetches and runs binaries from the internet is the supply-chain risk this server exists
+to find, not to run. Installation needs root; without it, setup says so and the
+assessment continues with what it has.
 
 ---
 
@@ -268,6 +291,43 @@ Override the model with `SENTINELX_MODEL`:
 SENTINELX_MODEL=opencode/big-pickle SENTINELX_AUTHORISED=1 scripts/assess.sh example.com
 ```
 
+## Starting an assessment
+
+Two tools answer the two questions an assessment actually opens with.
+
+**"What is this host?"** — `sentinelx_network_profile` takes a single IP or hostname and
+returns, in one call: who owns the address, the hop path to it, the operating system, every
+open service with its version, and the exposures those versions imply.
+
+```bash
+# from Cursor, in plain language:
+# "10.0.0.5'i derinlemesine incele, açıkları çıkar"
+```
+
+It runs as a sequence of stages, and reports each one in `coverage` — including the stages
+that could not run. That matters: a deep profile that quietly skipped discovery would read
+exactly like one that looked hard and found nothing.
+
+| depth | what it adds |
+|---|---|
+| `quick` | ownership plus a top-100 service scan |
+| `standard` | adds the hop path, OS detection and banner scripts |
+| `deep` | adds TLS and cipher enumeration, certificate extraction, `--version-all` |
+
+**"What is this machine doing on the network?"** — `sentinelx_traffic_audit` reads the
+kernel's own connection tables under `/proc`: listening ports, established connections with
+the owning process, ARP neighbours, the routing table and the resolver. It needs no root, and
+reports which sockets it could not attribute to a process when it is not running as one.
+
+It is worth being precise about what that is, because "traffic inspection" invites the wrong
+model. **This is not packet capture.** There is no promiscuous mode, no payload decoding, and
+it cannot see another machine's traffic or decrypt TLS. What it does give you is the thing
+that usually answers the question — an unexpected listener, a process talking to a database
+over cleartext, a management port bound to every interface, a host talking to a resolver you
+did not configure.
+
+---
+
 ## Output format
 
 Every response — success or failure — is a JSON envelope with a stable shape, so a model can
@@ -288,6 +348,29 @@ parse it without guessing:
 
 `command` records the exact invocation, so every finding is reproducible and auditable.
 
+### A cached result says so
+
+A repeat call inside `SENTINELX_CACHE_TTL` is served from memory and labelled in the
+envelope itself, not in a footnote:
+
+```json
+{
+  "tool": "sentinelx_port_scan",
+  "target": "10.0.0.5",
+  "timestamp": "2026-09-25T19:12:45Z",
+  "cache_hit": true,
+  "cache_age_ms": 240000,
+  "cache_note": "RESULT SERVED FROM CACHE, 4m0s old (still probably current). Do not describe this as the current state of the target. Re-run this tool to refresh."
+}
+```
+
+Two details matter. The `timestamp` is the **observation** time and is not rewritten on a
+hit, because a ten-minute-old scan presented with a fresh timestamp is how stale data gets
+reported as current. And the tools that change something — `sentinelx_setup`,
+`sentinelx_baseline`, `sentinelx_sarif_report`, and the two active scanners — are never
+cached at all. Replaying a successful "wrote /tmp/report.sarif" without touching the disk
+would report success for an action that did not happen, which is worse than a slow call.
+
 ---
 
 ## Configuration
@@ -307,6 +390,13 @@ needs to see.
 | `SENTINELX_TIMEOUT_REON` / `_SCAN` / `_VULN` / `_AUDIT` / `_HTTP` / `_MAX` | 30s / 300s / 45s / 60s / 20s / 600s | Per-module budgets. A caller may shorten a budget but never raise it above `_MAX`. |
 | `SENTINELX_MAX_OUTPUT_BYTES` | 2 MiB | Per-command output cap. |
 | `SENTINELX_MAX_CONCURRENCY` | 4 | Simultaneously running external processes. |
+| `SENTINELX_CACHE` | `on` | Memoise tool results. `off` / `0` / `false` / `no` / `disabled` (any case) turns it off. Every hit is labelled with its age. |
+| `SENTINELX_CACHE_TTL` | `10m` | How long a memoised result stays servable. A nonsense value falls back to the default rather than disabling the cache. |
+| `SENTINELX_CACHE_MAX` | `256` | Maximum cached envelopes. The oldest live entry is dropped to make room. |
+| `SENTINELX_BUDGET_PER_TARGET` | `500` | External commands per target per hour. `0` means unlimited. |
+| `SENTINELX_BUDGET_TOTAL` | `5000` | External commands per process per hour, across all targets. |
+| `SENTINELX_BUDGET_PER_TOOL` | `1500` | External commands per binary per hour. |
+| `SENTINELX_AUTO_INSTALL` | `on` | `off` makes `sentinelx_setup` report without installing. |
 | `SENTINELX_VERBOSE` | `false` | Diagnostic logging to **stderr** (stdout is the protocol stream). |
 | `NVD_API_KEY` | *(unset)* | Raises the NVD rate limit from 5 to 50 requests / 30s. The two tiers get separate limiters, so a client with a key is never throttled at the anonymous ceiling. |
 | `SENTINELX_DKIM_SELECTORS` | a common default set | Extra DKIM selectors probed by `sentinelx_dns_security_audit`. |

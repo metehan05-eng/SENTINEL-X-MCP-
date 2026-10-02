@@ -35,6 +35,7 @@ func Recon(d Deps) []Tool {
 		reverseLookupTool(d),
 		dnsSecurityAuditTool(d),
 		subdomainDiscoveryTool(d),
+		networkProfileTool(d),
 	}
 }
 
